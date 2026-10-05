@@ -11,6 +11,8 @@ class Settings(BaseSettings):
         "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
     )
     redis_url: str = "redis://localhost:6379/0"
+    job_lease_seconds: float = 60.0
+    max_job_attempts: int = 3
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",

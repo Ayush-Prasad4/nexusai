@@ -1,49 +1,77 @@
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
-from redis import Redis
+from redis.asyncio import Redis
 
 from app.application.jobs.contracts import DecisionJob
 from app.core.config import get_settings
-from app.infrastructure.redis.queue import DECISION_QUEUE
+from app.infrastructure.redis.queue import (
+    DECISION_CONSUMER_GROUP,
+    DECISION_STREAM,
+    DecisionJobQueue,
+)
 from app.main import app
 
 
-def create_test_redis_client() -> Redis:
-    settings = get_settings()
-
-    return Redis.from_url(
-        settings.redis_url,
-        decode_responses=True,
-    )
-
-
 def test_create_decision_enqueues_job() -> None:
-    redis = create_test_redis_client()
-
-    redis.delete(DECISION_QUEUE)
-
-    with TestClient(app) as client:
-        response = client.post(
-            "/v1/decisions",
-            json={
-                "objective": "Verify asynchronous decision processing.",
-            },
+    async def scenario() -> None:
+        redis = Redis.from_url(
+            get_settings().redis_url,
+            decode_responses=True,
         )
 
-    assert response.status_code == 201
+        try:
+            await redis.delete(DECISION_STREAM)
 
-    body = response.json()
-    decision_run_id = UUID(body["id"])
+            queue = DecisionJobQueue(
+                redis,
+                consumer_name=f"test-worker-{uuid4()}",
+            )
 
-    payload = redis.lpop(DECISION_QUEUE)
+            await queue.initialize()
 
-    assert payload is not None
+            with TestClient(app) as client:
+                response = client.post(
+                    "/v1/decisions",
+                    json={
+                        "objective": (
+                            "Verify asynchronous decision processing."
+                        ),
+                    },
+                )
 
-    job = DecisionJob.model_validate_json(payload)
+            assert response.status_code == 201
 
-    assert job.decision_run_id == decision_run_id
-    assert job.job_type == "decision.process"
+            body = response.json()
+            decision_run_id = UUID(body["id"])
 
-    redis.delete(DECISION_QUEUE)
-    redis.close()
+            messages = await redis.xrange(
+                DECISION_STREAM,
+                count=10,
+            )
+
+            assert messages
+
+            matching_jobs: list[DecisionJob] = []
+
+            for _, fields in messages:
+                job = DecisionJob.model_validate_json(
+                    fields["job"],
+                )
+
+                if job.decision_run_id == decision_run_id:
+                    matching_jobs.append(job)
+
+            assert len(matching_jobs) == 1
+            assert matching_jobs[0].job_type == "decision.process"
+
+        finally:
+            await redis.delete(DECISION_STREAM)
+            await redis.delete(
+                "nexusai:jobs:decision:dead-letter",
+            )
+            await redis.aclose()
+
+    import asyncio
+
+    asyncio.run(scenario())

@@ -1,15 +1,20 @@
 import asyncio
 import logging
+from uuid import uuid4
 
 from redis.asyncio import Redis
 
 from app.application.jobs.contracts import DecisionJob
+from app.application.reliability.executor import execute_with_retry
+from app.application.reliability.retry import RetryPolicy
 from app.application.workflows.decision_graph import build_decision_graph
 from app.core.config import get_settings
 from app.domain.repositories import DecisionRunRepository
 from app.infrastructure.database.checkpointer import create_checkpoint_saver
 from app.infrastructure.database.session import AsyncSessionFactory
-from app.infrastructure.redis.queue import DECISION_QUEUE
+from app.infrastructure.redis.queue import (
+    DecisionJobQueue,
+)
 from app.infrastructure.repositories.postgres import (
     PostgresDecisionRunRepository,
 )
@@ -48,6 +53,30 @@ async def process_job(job: DecisionJob) -> None:
         )
 
     async with create_checkpoint_saver() as checkpointer:
+        config = {
+            "configurable": {
+                "thread_id": str(decision_run.id),
+            }
+        }
+
+        latest_checkpoint = await checkpointer.aget_tuple(config)
+
+        if latest_checkpoint is not None:
+            channel_values = latest_checkpoint.checkpoint.get(
+                "channel_values",
+                {},
+            )
+
+            if channel_values.get("status") == "completed":
+                logger.info(
+                    "Decision workflow already completed; skipping duplicate job",
+                    extra={
+                        "job_id": str(job.job_id),
+                        "decision_run_id": str(job.decision_run_id),
+                    },
+                )
+                return
+
         graph = build_decision_graph(
             checkpointer=checkpointer,
         )
@@ -60,15 +89,15 @@ async def process_job(job: DecisionJob) -> None:
             "error": None,
         }
 
-        config = {
-            "configurable": {
-                "thread_id": str(decision_run.id),
-            }
-        }
+        async def execute_workflow() -> dict:
+            return await graph.ainvoke(
+                initial_state,
+                config=config,
+            )
 
-        result = await graph.ainvoke(
-            initial_state,
-            config=config,
+        result = await execute_with_retry(
+            execute_workflow,
+            RetryPolicy(),
         )
 
     logger.info(
@@ -87,12 +116,38 @@ async def run_worker() -> None:
     try:
         logger.info("Decision worker started")
 
+        queue = DecisionJobQueue(
+            redis,
+            consumer_name=f"worker-{uuid4()}",
+        )
+
+        await queue.initialize()
+
+        logger.info(
+            "Decision job consumer group initialized",
+        )
+
         while True:
-            _, payload = await redis.blpop(DECISION_QUEUE)
+            processing_job = await queue.claim()
 
-            job = DecisionJob.model_validate_json(payload)
+            if processing_job is None:
+                continue
 
-            await process_job(job)
+            job = processing_job.job
+
+            try:
+                await process_job(job)
+            except Exception:
+                logger.exception(
+                    "Decision job failed; leaving stream message pending",
+                    extra={
+                        "job_id": str(job.job_id),
+                        "decision_run_id": str(job.decision_run_id),
+                    },
+                )
+                raise
+
+            await queue.acknowledge(processing_job)
 
     finally:
         await redis.aclose()
