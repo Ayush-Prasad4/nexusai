@@ -5,7 +5,10 @@ from app.core.config import get_settings
 from app.core.errors.exceptions import NexusAIException
 from app.core.errors.handlers import nexusai_exception_handler
 from app.core.middleware.request_id import RequestIDMiddleware
+from app.observability.logging import configure_logging
 
+
+configure_logging()
 
 settings = get_settings()
 
