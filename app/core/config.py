@@ -13,6 +13,9 @@ class Settings(BaseSettings):
     redis_url: str = "redis://localhost:6379/0"
     job_lease_seconds: float = 60.0
     max_job_attempts: int = 3
+    llm_provider: str = "openai"
+    llm_model: str = "gpt-5.4-mini"
+    llm_api_key: str | None = None
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",
