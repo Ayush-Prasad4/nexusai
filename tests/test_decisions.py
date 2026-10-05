@@ -34,3 +34,24 @@ def test_create_decision_requires_objective() -> None:
     )
 
     assert response.status_code == 422
+
+
+def test_create_decision_response_contract() -> None:
+    response = client.post(
+        "/v1/decisions",
+        json={
+            "objective": "Evaluate a business decision.",
+        },
+    )
+
+    assert response.status_code == 201
+
+    body = response.json()
+
+    assert set(body.keys()) == {
+        "id",
+        "status",
+        "created_at",
+        "updated_at",
+    }
+    assert body["status"] == "pending"
