@@ -1,12 +1,21 @@
-from dataclasses import dataclass
-import os
+from functools import lru_cache
+
+from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
-@dataclass(frozen=True)
-class Settings:
-    app_name: str = os.getenv("NEXUSAI_APP_NAME", "NexusAI")
-    environment: str = os.getenv("NEXUSAI_ENV", "development")
+class Settings(BaseSettings):
+    app_name: str = "NexusAI"
+    environment: str = "development"
     api_v1_prefix: str = "/v1"
 
+    model_config = SettingsConfigDict(
+        env_prefix="NEXUSAI_",
+        env_file=".env",
+        env_file_encoding="utf-8",
+        extra="ignore",
+    )
 
-settings = Settings()
+
+@lru_cache
+def get_settings() -> Settings:
+    return Settings()
