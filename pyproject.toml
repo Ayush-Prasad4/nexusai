@@ -11,14 +11,20 @@ dependencies = [
     "fastapi>=0.115,<1",
     "pydantic-settings>=2,<3",
     "uvicorn[standard]>=0.30,<1",
+    "sqlalchemy>=2,<3",
+    "asyncpg>=0.30,<1",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8,<9",
-    "httpx2>=0.1,<1",
+    "httpx2>=2,<3",
 ]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["."]
+
+[tool.setuptools.packages.find]
+include = ["app*"]
+exclude = ["configs*"]

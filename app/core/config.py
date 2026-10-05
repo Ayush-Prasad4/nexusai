@@ -7,6 +7,9 @@ class Settings(BaseSettings):
     app_name: str = "NexusAI"
     environment: str = "development"
     api_v1_prefix: str = "/v1"
+    database_url: str = (
+        "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+    )
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",
