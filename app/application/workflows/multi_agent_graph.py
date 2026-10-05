@@ -10,11 +10,20 @@ from app.application.agents.inputs import (
 )
 from app.application.agents.research import ResearchAgent
 from app.application.agents.synthesis import SynthesisAgent
+from app.application.llm.fake import FakeLLMClient
+from app.application.llm.protocol import LLMClient
 from app.application.workflows.state import DecisionState
 
 
-async def run_research(state: DecisionState) -> dict:
-    agent = ResearchAgent()
+def _default_llm() -> LLMClient:
+    return FakeLLMClient()
+
+
+async def run_research(
+    state: DecisionState,
+    llm: LLMClient,
+) -> dict:
+    agent = ResearchAgent(llm)
 
     result = await agent.run(
         ResearchInput(
@@ -28,8 +37,11 @@ async def run_research(state: DecisionState) -> dict:
     }
 
 
-async def run_analysis(state: DecisionState) -> dict:
-    agent = AnalysisAgent()
+async def run_analysis(
+    state: DecisionState,
+    llm: LLMClient,
+) -> dict:
+    agent = AnalysisAgent(llm)
 
     result = await agent.run(
         AnalysisInput(
@@ -44,8 +56,11 @@ async def run_analysis(state: DecisionState) -> dict:
     }
 
 
-async def run_critique(state: DecisionState) -> dict:
-    agent = CriticAgent()
+async def run_critique(
+    state: DecisionState,
+    llm: LLMClient,
+) -> dict:
+    agent = CriticAgent(llm)
 
     result = await agent.run(
         CritiqueInput(
@@ -60,8 +75,11 @@ async def run_critique(state: DecisionState) -> dict:
     }
 
 
-async def run_synthesis(state: DecisionState) -> dict:
-    agent = SynthesisAgent()
+async def run_synthesis(
+    state: DecisionState,
+    llm: LLMClient,
+) -> dict:
+    agent = SynthesisAgent(llm)
 
     result = await agent.run(
         SynthesisInput(
@@ -79,13 +97,29 @@ async def run_synthesis(state: DecisionState) -> dict:
     }
 
 
-def build_multi_agent_graph():
+def build_multi_agent_graph(
+    llm: LLMClient | None = None,
+):
+    llm = llm or _default_llm()
+
+    async def research_node(state: DecisionState) -> dict:
+        return await run_research(state, llm)
+
+    async def analysis_node(state: DecisionState) -> dict:
+        return await run_analysis(state, llm)
+
+    async def critique_node(state: DecisionState) -> dict:
+        return await run_critique(state, llm)
+
+    async def synthesis_node(state: DecisionState) -> dict:
+        return await run_synthesis(state, llm)
+
     graph = StateGraph(DecisionState)
 
-    graph.add_node("research", run_research)
-    graph.add_node("analysis", run_analysis)
-    graph.add_node("critique", run_critique)
-    graph.add_node("synthesis", run_synthesis)
+    graph.add_node("research", research_node)
+    graph.add_node("analysis", analysis_node)
+    graph.add_node("critique", critique_node)
+    graph.add_node("synthesis", synthesis_node)
 
     graph.add_edge(START, "research")
     graph.add_edge("research", "analysis")
