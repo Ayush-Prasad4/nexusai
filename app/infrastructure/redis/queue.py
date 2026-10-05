@@ -73,6 +73,25 @@ class DecisionJobQueue:
             stream_id=stream_id,
         )
 
+    async def heartbeat(
+        self,
+        processing_job: ProcessingJob,
+    ) -> None:
+        if processing_job.stream_id is None:
+            raise ValueError(
+                "Cannot heartbeat a job without a stream ID."
+            )
+
+        await self.redis.xclaim(
+            name=DECISION_STREAM,
+            groupname=DECISION_CONSUMER_GROUP,
+            consumername=self.consumer_name,
+            min_idle_time=0,
+            message_ids=[
+                processing_job.stream_id,
+            ],
+        )
+
     async def acknowledge(
         self,
         processing_job: ProcessingJob,

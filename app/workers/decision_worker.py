@@ -110,6 +110,16 @@ async def process_job(job: DecisionJob) -> None:
     )
 
 
+async def heartbeat_processing_job(
+    queue: DecisionJobQueue,
+    processing_job,
+    interval_seconds: float,
+) -> None:
+    while True:
+        await asyncio.sleep(interval_seconds)
+        await queue.heartbeat(processing_job)
+
+
 async def run_worker() -> None:
     redis = create_worker_redis_client()
 
@@ -134,6 +144,20 @@ async def run_worker() -> None:
                 continue
 
             job = processing_job.job
+            settings = get_settings()
+
+            heartbeat_interval = max(
+                settings.job_lease_seconds / 3,
+                1.0,
+            )
+
+            heartbeat_task = asyncio.create_task(
+                heartbeat_processing_job(
+                    queue,
+                    processing_job,
+                    heartbeat_interval,
+                )
+            )
 
             try:
                 await process_job(job)
@@ -146,6 +170,13 @@ async def run_worker() -> None:
                     },
                 )
                 raise
+            finally:
+                heartbeat_task.cancel()
+
+                try:
+                    await heartbeat_task
+                except asyncio.CancelledError:
+                    pass
 
             await queue.acknowledge(processing_job)
 
