@@ -3,6 +3,7 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 from app.domain.models import DecisionRun
+from app.domain.status import DecisionRunStatus
 from app.domain.repositories import DecisionRunRepository
 
 
@@ -16,6 +17,19 @@ class FakeDecisionRunRepository:
 
     async def get(self, run_id):
         return self.runs.get(str(run_id))
+
+    async def update_status(
+        self,
+        run_id,
+        status: DecisionRunStatus,
+    ) -> None:
+        run = self.runs.get(str(run_id))
+
+        if run is None:
+            raise ValueError(f"Decision run not found: {run_id}")
+
+        run.status = status
+        run.updated_at = datetime.now(timezone.utc)
 
 
 def test_repository_implements_contract() -> None:

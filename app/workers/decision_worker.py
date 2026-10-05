@@ -10,6 +10,7 @@ from app.application.reliability.retry import RetryPolicy
 from app.application.workflows.decision_graph import build_decision_graph
 from app.core.config import get_settings
 from app.domain.repositories import DecisionRunRepository
+from app.domain.status import DecisionRunStatus
 from app.infrastructure.database.checkpointer import create_checkpoint_saver
 from app.infrastructure.database.session import AsyncSessionFactory
 from app.infrastructure.redis.queue import (
@@ -99,6 +100,11 @@ async def process_job(job: DecisionJob) -> None:
             execute_workflow,
             RetryPolicy(),
         )
+
+    await repository.update_status(
+        decision_run.id,
+        DecisionRunStatus.COMPLETED,
+    )
 
     logger.info(
         "Decision workflow completed",

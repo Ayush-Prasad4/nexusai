@@ -92,9 +92,18 @@ def test_process_job_executes_decision_graph(monkeypatch) -> None:
         status = DecisionRunStatus.PENDING
 
     class FakeRepository:
+        def __init__(self):
+            self.updated_status = None
+
         async def get(self, run_id):
             assert run_id == decision_run_id
             return FakeDecisionRun()
+
+        async def update_status(self, run_id, status):
+            assert run_id == decision_run_id
+            self.updated_status = status
+
+    fake_repository = FakeRepository()
 
     invoked_states: list[dict] = []
     received_checkpointers: list[object] = []
@@ -131,7 +140,7 @@ def test_process_job_executes_decision_graph(monkeypatch) -> None:
     monkeypatch.setattr(
         decision_worker,
         "create_worker_decision_repository",
-        lambda: FakeRepository(),
+        lambda: fake_repository,
     )
 
     monkeypatch.setattr(
@@ -150,6 +159,7 @@ def test_process_job_executes_decision_graph(monkeypatch) -> None:
         decision_worker.process_job(job)
     )
 
+    assert fake_repository.updated_status == DecisionRunStatus.COMPLETED
     assert len(received_checkpointers) == 1
     assert hasattr(
         received_checkpointers[0],
