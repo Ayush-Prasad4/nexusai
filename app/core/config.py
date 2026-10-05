@@ -10,6 +10,7 @@ class Settings(BaseSettings):
     database_url: str = (
         "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
     )
+    redis_url: str = "redis://localhost:6379/0"
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",
