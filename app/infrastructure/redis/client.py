@@ -10,6 +10,3 @@ def create_redis_client() -> Redis:
         settings.redis_url,
         decode_responses=True,
     )
-
-
-redis_client = create_redis_client()

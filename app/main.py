@@ -8,7 +8,7 @@ from app.core.errors.exceptions import NexusAIException
 from app.core.errors.handlers import nexusai_exception_handler
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.observability.logging import configure_logging
-from app.infrastructure.redis.client import redis_client
+from app.infrastructure.redis.client import create_redis_client
 
 
 configure_logging()
@@ -18,9 +18,11 @@ settings = get_settings()
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    await redis_client.ping()
+    redis = create_redis_client()
+    await redis.ping()
+    app.state.redis = redis
     yield
-    await redis_client.aclose()
+    await redis.aclose()
 
 
 app = FastAPI(

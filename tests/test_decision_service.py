@@ -4,6 +4,15 @@ from uuid import UUID
 
 from app.application.decision_service import DecisionService
 from app.domain.models import DecisionRequest, DecisionRun
+from app.application.jobs.contracts import DecisionJob
+
+
+class FakeDecisionJobQueue:
+    def __init__(self) -> None:
+        self.enqueued_job: DecisionJob | None = None
+
+    async def enqueue(self, job: DecisionJob) -> None:
+        self.enqueued_job = job
 
 
 class FakeDecisionRunRepository:
@@ -21,7 +30,8 @@ class FakeDecisionRunRepository:
 def test_create_decision() -> None:
     async def scenario() -> None:
         repository = FakeDecisionRunRepository()
-        service = DecisionService(repository)
+        job_queue = FakeDecisionJobQueue()
+        service = DecisionService(repository, job_queue)
 
         request = DecisionRequest(
             objective="Assess supplier reliability.",
@@ -34,5 +44,8 @@ def test_create_decision() -> None:
         assert run.created_at.tzinfo is not None
         assert run.updated_at.tzinfo is not None
         assert repository.saved_run == run
+        assert job_queue.enqueued_job is not None
+        assert job_queue.enqueued_job.decision_run_id == run.id
+        assert job_queue.enqueued_job.job_type == "decision.process"
 
     asyncio.run(scenario())
