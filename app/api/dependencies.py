@@ -1,11 +1,9 @@
-from functools import lru_cache
-
 from app.domain.repositories import DecisionRunRepository
-from app.infrastructure.repositories.in_memory import (
-    InMemoryDecisionRunRepository,
+from app.infrastructure.database.session import AsyncSessionFactory
+from app.infrastructure.repositories.postgres import (
+    PostgresDecisionRunRepository,
 )
 
 
-@lru_cache
 def get_decision_repository() -> DecisionRunRepository:
-    return InMemoryDecisionRunRepository()
+    return PostgresDecisionRunRepository(AsyncSessionFactory)

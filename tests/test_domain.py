@@ -11,12 +11,16 @@ def test_decision_run_defaults() -> None:
     now = datetime.now(timezone.utc)
 
     run = DecisionRun(
+        objective="Assess supplier reliability.",
+        context="Supplier has experienced repeated delivery delays.",
         created_at=now,
         updated_at=now,
     )
 
     assert isinstance(run.id, UUID)
     assert run.status == DecisionRunStatus.PENDING
+    assert run.objective == "Assess supplier reliability."
+    assert run.context == "Supplier has experienced repeated delivery delays."
     assert run.created_at == now
     assert run.updated_at == now
 

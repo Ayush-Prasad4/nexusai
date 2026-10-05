@@ -15,6 +15,8 @@ class DecisionService:
         now = datetime.now(timezone.utc)
 
         run = DecisionRun(
+            objective=request.objective,
+            context=request.context,
             created_at=now,
             updated_at=now,
         )

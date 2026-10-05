@@ -31,6 +31,8 @@ def test_repository_save_and_get() -> None:
         now = datetime.now(timezone.utc)
         run = DecisionRun(
             id=uuid4(),
+            objective="Assess supplier reliability.",
+            context="Supplier has experienced repeated delivery delays.",
             created_at=now,
             updated_at=now,
         )

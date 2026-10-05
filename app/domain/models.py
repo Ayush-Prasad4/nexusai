@@ -14,5 +14,7 @@ class DecisionRequest(BaseModel):
 class DecisionRun(BaseModel):
     id: UUID = Field(default_factory=uuid4)
     status: DecisionRunStatus = DecisionRunStatus.PENDING
+    objective: str
+    context: str | None = None
     created_at: datetime
     updated_at: datetime
