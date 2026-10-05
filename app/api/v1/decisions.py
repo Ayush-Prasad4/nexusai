@@ -1,9 +1,10 @@
-from datetime import datetime, timezone
+from fastapi import APIRouter, Depends, status
 
-from fastapi import APIRouter, status
-
+from app.api.dependencies import get_decision_repository
 from app.api.v1.schemas import DecisionRunResponse
-from app.domain.models import DecisionRequest, DecisionRun
+from app.application.decision_service import DecisionService
+from app.domain.models import DecisionRequest
+from app.domain.repositories import DecisionRunRepository
 
 router = APIRouter(tags=["decisions"])
 
@@ -15,10 +16,15 @@ router = APIRouter(tags=["decisions"])
 )
 async def create_decision(
     request: DecisionRequest,
-) -> DecisionRun:
-    now = datetime.now(timezone.utc)
+    repository: DecisionRunRepository = Depends(get_decision_repository),
+) -> DecisionRunResponse:
+    service = DecisionService(repository)
 
-    return DecisionRun(
-        created_at=now,
-        updated_at=now,
+    run = await service.create_decision(request)
+
+    return DecisionRunResponse(
+        id=run.id,
+        status=run.status,
+        created_at=run.created_at,
+        updated_at=run.updated_at,
     )
