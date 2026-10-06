@@ -13,6 +13,31 @@ jobs:
     name: Test
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: nexusai
+          POSTGRES_USER: nexusai
+          POSTGRES_PASSWORD: nexusai
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd="pg_isready -U nexusai -d nexusai"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
+      redis:
+        image: redis:7
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd="redis-cli ping"
+          --health-interval=10s
+          --health-timeout=5s
+          --health-retries=5
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -30,6 +55,9 @@ jobs:
 
       - name: Run tests
         env:
+          NEXUSAI_ENVIRONMENT: testing
+          NEXUSAI_DATABASE_URL: "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+          NEXUSAI_REDIS_URL: "redis://localhost:6379/0"
           NEXUSAI_JWT_SECRET_KEY: "ci-test-secret-key-that-is-at-least-32-characters-long"
         run: pytest -q
 
