@@ -1,7 +1,7 @@
 from typing import Protocol, runtime_checkable
 from uuid import UUID
 
-from app.domain.models import DecisionRun
+from app.domain.models import DecisionRun, User
 from app.domain.status import DecisionRunStatus
 
 
@@ -18,4 +18,16 @@ class DecisionRunRepository(Protocol):
         run_id: UUID,
         status: DecisionRunStatus,
     ) -> None:
+        ...
+
+
+@runtime_checkable
+class UserRepository(Protocol):
+    async def create(self, user: User) -> User:
+        ...
+
+    async def get_by_id(self, user_id: UUID) -> User | None:
+        ...
+
+    async def get_by_email(self, email: str) -> User | None:
         ...

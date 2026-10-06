@@ -18,3 +18,13 @@ class DecisionRun(BaseModel):
     context: str | None = None
     created_at: datetime
     updated_at: datetime
+
+
+class User(BaseModel):
+    id: UUID = Field(default_factory=uuid4)
+    email: str
+    password_hash: str
+    role: str = "user"
+    is_active: bool = True
+    created_at: datetime
+    updated_at: datetime
