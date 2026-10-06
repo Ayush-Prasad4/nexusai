@@ -29,6 +29,8 @@ jobs:
           pip install ".[dev]"
 
       - name: Run tests
+        env:
+          NEXUSAI_JWT_SECRET_KEY: "ci-test-secret-key-that-is-at-least-32-characters-long"
         run: pytest -q
 
       - name: Check formatting
