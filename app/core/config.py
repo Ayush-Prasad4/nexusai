@@ -19,6 +19,8 @@ class Settings(BaseSettings):
     jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+    rate_limit_requests: int = 100
+    rate_limit_window_seconds: int = 60
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",
