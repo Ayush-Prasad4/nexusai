@@ -22,6 +22,11 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
     max_request_body_bytes: int = 1_048_576
+    allowed_hosts: list[str] = [
+        "localhost",
+        "127.0.0.1",
+        "testserver",
+    ]
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",

@@ -10,6 +10,7 @@ from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.rate_limit import RateLimitMiddleware
 from app.core.middleware.security_headers import SecurityHeadersMiddleware
 from app.core.middleware.request_size import RequestSizeLimitMiddleware
+from app.core.middleware.trusted_host import add_trusted_host_middleware
 from app.observability.logging import configure_logging
 from app.infrastructure.redis.client import create_redis_client
 
@@ -43,5 +44,6 @@ app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RateLimitMiddleware)
 app.add_middleware(SecurityHeadersMiddleware)
 app.add_middleware(RequestSizeLimitMiddleware)
+add_trusted_host_middleware(app)
 
 app.include_router(api_router)
