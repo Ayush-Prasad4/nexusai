@@ -5,7 +5,10 @@ from fastapi import FastAPI
 from app.api.router import api_router
 from app.core.config import get_settings
 from app.core.errors.exceptions import NexusAIException
-from app.core.errors.handlers import nexusai_exception_handler
+from app.core.errors.handlers import (
+    nexusai_exception_handler,
+    unhandled_exception_handler,
+)
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.rate_limit import RateLimitMiddleware
 from app.core.middleware.security_headers import SecurityHeadersMiddleware
@@ -38,6 +41,11 @@ app = FastAPI(
 app.add_exception_handler(
     NexusAIException,
     nexusai_exception_handler,
+)
+
+app.add_exception_handler(
+    Exception,
+    unhandled_exception_handler,
 )
 
 app.add_middleware(RequestIDMiddleware)
