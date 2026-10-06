@@ -53,6 +53,32 @@ jobs:
           python -m pip install --upgrade pip
           pip install ".[dev]"
 
+      - name: Run database migrations
+        env:
+          NEXUSAI_DATABASE_URL: "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+        run: alembic upgrade head
+
+      - name: Initialize LangGraph checkpoint schema
+        env:
+          NEXUSAI_DATABASE_URL: "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+        run: |
+          python - <<'PYTHON'
+          import asyncio
+          from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+          async def main():
+              connection_string = (
+                  "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+              ).replace("postgresql+asyncpg://", "postgresql://")
+
+              async with AsyncPostgresSaver.from_conn_string(
+                  connection_string
+              ) as checkpointer:
+                  await checkpointer.setup()
+
+          asyncio.run(main())
+          PYTHON
+
       - name: Run tests
         env:
           NEXUSAI_ENVIRONMENT: testing
