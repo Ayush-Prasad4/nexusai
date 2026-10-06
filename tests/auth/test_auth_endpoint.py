@@ -80,3 +80,16 @@ def test_auth_me_does_not_expose_password_hash() -> None:
     assert response.status_code == 200
     assert "password_hash" not in response.json()
     assert "super-secret-hash" not in response.text
+
+
+def test_auth_me_rejects_malformed_access_token() -> None:
+    response = client.get(
+        "/v1/auth/me",
+        headers={"Authorization": "Bearer definitely-not-a-jwt"},
+    )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == (
+        "Invalid authentication credentials"
+    )
+    assert response.headers["WWW-Authenticate"] == "Bearer"

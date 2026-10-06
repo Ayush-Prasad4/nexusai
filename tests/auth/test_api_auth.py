@@ -186,3 +186,30 @@ async def test_require_role_allows_multiple_roles() -> None:
     result = await dependency(current_user=user)
 
     assert result == user
+
+
+@pytest.mark.asyncio
+async def test_get_current_user_rejects_inactive_user_with_valid_user_id() -> None:
+    user_id = uuid4()
+
+    user = User(
+        id=user_id,
+        email="revoked@nexusai.test",
+        password_hash="hashed-password",
+        role="user",
+        is_active=False,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    repository = AsyncMock()
+    repository.get_by_id.return_value = user
+
+    with pytest.raises(HTTPException) as exc_info:
+        await get_current_user(
+            user_id=user_id,
+            repository=repository,
+        )
+
+    assert exc_info.value.status_code == 401
+    assert exc_info.value.headers["WWW-Authenticate"] == "Bearer"
