@@ -56,6 +56,7 @@ jobs:
       - name: Run database migrations
         env:
           NEXUSAI_DATABASE_URL: "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
+          NEXUSAI_JWT_SECRET_KEY: "ci-test-secret-key-that-is-at-least-32-characters-long"
         run: alembic upgrade head
 
       - name: Initialize LangGraph checkpoint schema
