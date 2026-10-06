@@ -1,11 +1,12 @@
 from functools import lru_cache
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
     app_name: str = "NexusAI"
-    environment: str = "development"
+    environment: str = Field(default="development", pattern="^(development|testing|production)$")
     api_v1_prefix: str = "/v1"
     database_url: str = (
         "postgresql+asyncpg://nexusai:nexusai@localhost:5432/nexusai"
@@ -16,7 +17,7 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     llm_model: str = "gpt-5.4-mini"
     llm_api_key: str | None = None
-    jwt_secret_key: str
+    jwt_secret_key: str = Field(min_length=32)
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
     rate_limit_requests: int = 100
