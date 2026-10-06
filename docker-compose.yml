@@ -32,6 +32,55 @@ services:
       timeout: 5s
       retries: 10
 
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexusai-api
+    restart: unless-stopped
+    healthcheck:
+      test:
+        [
+          "CMD",
+          "python",
+          "-c",
+          "import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health/live')"
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    environment:
+      NEXUSAI_ENVIRONMENT: production
+      NEXUSAI_DATABASE_URL: postgresql+asyncpg://nexusai:nexusai@postgres:5432/nexusai
+      NEXUSAI_REDIS_URL: redis://redis:6379/0
+      NEXUSAI_JWT_SECRET_KEY: ${NEXUSAI_JWT_SECRET_KEY}
+    ports:
+      - "8003:8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexusai-worker
+    restart: unless-stopped
+    command: ["python", "-m", "app.workers.decision_worker"]
+    environment:
+      NEXUSAI_ENVIRONMENT: production
+      NEXUSAI_DATABASE_URL: postgresql+asyncpg://nexusai:nexusai@postgres:5432/nexusai
+      NEXUSAI_REDIS_URL: redis://redis:6379/0
+      NEXUSAI_JWT_SECRET_KEY: ${NEXUSAI_JWT_SECRET_KEY}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
 volumes:
   nexusai_postgres_data:
   nexusai_redis_data:
