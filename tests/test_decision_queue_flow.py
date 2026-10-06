@@ -1,12 +1,14 @@
+from datetime import datetime, timezone
 from uuid import UUID, uuid4
 
 from fastapi.testclient import TestClient
 from redis.asyncio import Redis
 
+from app.api.auth import get_current_user
 from app.application.jobs.contracts import DecisionJob
 from app.core.config import get_settings
+from app.domain.models import User
 from app.infrastructure.redis.queue import (
-    DECISION_CONSUMER_GROUP,
     DECISION_STREAM,
     DecisionJobQueue,
 )
@@ -20,6 +22,19 @@ def test_create_decision_enqueues_job() -> None:
             decode_responses=True,
         )
 
+        test_user = User(
+            id=uuid4(),
+            email="queue-test@nexusai.test",
+            password_hash="hashed-password",
+            role="user",
+            is_active=True,
+            created_at=datetime.now(timezone.utc),
+            updated_at=datetime.now(timezone.utc),
+        )
+
+        async def override_get_current_user() -> User:
+            return test_user
+
         try:
             await redis.delete(DECISION_STREAM)
 
@@ -30,14 +45,24 @@ def test_create_decision_enqueues_job() -> None:
 
             await queue.initialize()
 
-            with TestClient(app) as client:
-                response = client.post(
-                    "/v1/decisions",
-                    json={
-                        "objective": (
-                            "Verify asynchronous decision processing."
-                        ),
-                    },
+            app.dependency_overrides[get_current_user] = (
+                override_get_current_user
+            )
+
+            try:
+                with TestClient(app) as client:
+                    response = client.post(
+                        "/v1/decisions",
+                        json={
+                            "objective": (
+                                "Verify asynchronous decision processing."
+                            ),
+                        },
+                    )
+            finally:
+                app.dependency_overrides.pop(
+                    get_current_user,
+                    None,
                 )
 
             assert response.status_code == 201
@@ -66,6 +91,11 @@ def test_create_decision_enqueues_job() -> None:
             assert matching_jobs[0].job_type == "decision.process"
 
         finally:
+            app.dependency_overrides.pop(
+                get_current_user,
+                None,
+            )
+
             await redis.delete(DECISION_STREAM)
             await redis.delete(
                 "nexusai:jobs:decision:dead-letter",

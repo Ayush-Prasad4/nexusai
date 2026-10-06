@@ -1,12 +1,13 @@
 from fastapi import APIRouter, Depends, status
 
+from app.api.auth import get_current_user
 from app.api.dependencies import (
     get_decision_job_queue,
     get_decision_repository,
 )
 from app.api.v1.schemas import DecisionRunResponse
 from app.application.decision_service import DecisionService
-from app.domain.models import DecisionRequest
+from app.domain.models import DecisionRequest, User
 from app.domain.repositories import DecisionRunRepository
 from app.infrastructure.redis.queue import DecisionJobQueue
 
@@ -20,6 +21,7 @@ router = APIRouter(tags=["decisions"])
 )
 async def create_decision(
     request: DecisionRequest,
+    current_user: User = Depends(get_current_user),
     repository: DecisionRunRepository = Depends(get_decision_repository),
     job_queue: DecisionJobQueue = Depends(get_decision_job_queue),
 ) -> DecisionRunResponse:

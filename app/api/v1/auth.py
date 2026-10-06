@@ -15,6 +15,7 @@ from app.application.auth.login import (
     LoginService,
 )
 from app.application.auth.registration import RegistrationService
+from app.domain.models import User
 from app.domain.repositories import UserRepository
 
 
@@ -81,8 +82,18 @@ async def login(
     )
 
 
-@router.get("/me")
+@router.get(
+    "/me",
+    response_model=UserResponse,
+)
 async def get_me(
-    current_user: Annotated[str, Depends(get_current_user)],
-) -> dict[str, str]:
-    return {"user_id": current_user}
+    current_user: Annotated[User, Depends(get_current_user)],
+) -> UserResponse:
+    return UserResponse(
+        id=current_user.id,
+        email=current_user.email,
+        role=current_user.role,
+        is_active=current_user.is_active,
+        created_at=current_user.created_at,
+        updated_at=current_user.updated_at,
+    )

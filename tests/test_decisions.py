@@ -1,11 +1,15 @@
+from datetime import datetime, timezone
+from uuid import uuid4
+
 import pytest
 from fastapi.testclient import TestClient
 
+from app.api.auth import get_current_user
 from app.api.dependencies import (
     get_decision_job_queue,
     get_decision_repository,
 )
-from app.domain.models import DecisionRun
+from app.domain.models import DecisionRun, User
 from app.main import app
 
 
@@ -34,6 +38,22 @@ def client() -> TestClient:
     fake_repository = FakeDecisionRunRepository()
     fake_job_queue = FakeDecisionJobQueue()
 
+    test_user = User(
+        id=uuid4(),
+        email="decision-test@nexusai.test",
+        password_hash="hashed-password",
+        role="user",
+        is_active=True,
+        created_at=datetime.now(timezone.utc),
+        updated_at=datetime.now(timezone.utc),
+    )
+
+    async def override_get_current_user() -> User:
+        return test_user
+
+    app.dependency_overrides[get_current_user] = (
+        override_get_current_user
+    )
     app.dependency_overrides[get_decision_repository] = (
         lambda: fake_repository
     )
@@ -44,6 +64,7 @@ def client() -> TestClient:
     with TestClient(app) as test_client:
         yield test_client
 
+    app.dependency_overrides.pop(get_current_user, None)
     app.dependency_overrides.pop(get_decision_repository, None)
     app.dependency_overrides.pop(get_decision_job_queue, None)
 
@@ -97,3 +118,35 @@ def test_create_decision_response_contract(client: TestClient) -> None:
         "updated_at",
     }
     assert body["status"] == "pending"
+
+
+def test_create_decision_requires_authentication(
+    client: TestClient,
+) -> None:
+    app.dependency_overrides.pop(get_current_user, None)
+
+    try:
+        response = client.post(
+            "/v1/decisions",
+            json={
+                "objective": "Attempt an unauthenticated decision.",
+            },
+        )
+    finally:
+        async def override_get_current_user() -> User:
+            return User(
+                id=uuid4(),
+                email="decision-test@nexusai.test",
+                password_hash="hashed-password",
+                role="user",
+                is_active=True,
+                created_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(timezone.utc),
+            )
+
+        app.dependency_overrides[get_current_user] = (
+            override_get_current_user
+        )
+
+    assert response.status_code == 401
+    assert response.json()["detail"] == "Not authenticated"

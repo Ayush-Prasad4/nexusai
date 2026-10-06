@@ -16,7 +16,7 @@ class Settings(BaseSettings):
     llm_provider: str = "openai"
     llm_model: str = "gpt-5.4-mini"
     llm_api_key: str | None = None
-    jwt_secret_key: str = "change-me-in-production"
+    jwt_secret_key: str
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
 
