@@ -1,6 +1,7 @@
 from typing import TypedDict
 from uuid import UUID
 
+from app.application.evidence.conflicts import ConflictReport
 from app.application.evidence.contracts import EvidenceBundle
 
 
@@ -13,6 +14,7 @@ class DecisionState(TypedDict):
 
     research: list[str]
     evidence: EvidenceBundle
+    conflicts: ConflictReport
     analysis: list[str]
     critique: list[str]
     synthesis: str | None

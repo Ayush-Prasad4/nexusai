@@ -1,5 +1,6 @@
 from pydantic import BaseModel, Field
 
+from app.application.evidence.conflicts import ConflictReport
 from app.application.evidence.contracts import EvidenceBundle
 
 
@@ -13,6 +14,7 @@ class AnalysisInput(BaseModel):
     context: str | None = Field(default=None, max_length=50_000)
     research: list[str] = Field(default_factory=list)
     evidence: EvidenceBundle = Field(default_factory=EvidenceBundle)
+    conflicts: ConflictReport = Field(default_factory=ConflictReport)
 
 
 class CritiqueInput(BaseModel):

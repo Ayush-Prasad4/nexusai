@@ -6,6 +6,12 @@ from app.application.agents.inputs import (
     SynthesisInput,
 )
 from app.application.agents.synthesis import SynthesisAgent
+from app.application.evidence.conflicts import (
+    ConflictReport,
+    ConflictSeverity,
+    EvidenceConflict,
+)
+from app.application.evidence.contracts import EvidenceBundle, EvidenceItem
 from app.application.llm.fake import FakeLLMClient
 
 
@@ -34,6 +40,53 @@ async def test_analysis_agent_uses_structured_llm_response() -> None:
     assert result.assumptions == ["Assumption one"]
     assert len(llm.prompts) == 1
     assert "Enterprise demand is growing." in llm.prompts[0]
+
+
+async def test_analysis_agent_includes_conflicts_in_prompt() -> None:
+    llm = FakeLLMClient(
+        response=(
+            '{"conclusions": ["Conflicting revenue signals require review"], '
+            '"assumptions": []}'
+        )
+    )
+
+    first = EvidenceItem(
+        claim="Revenue increased by 18%.",
+        source="Annual filing",
+        source_type="regulatory_filing",
+        confidence=0.9,
+    )
+
+    second = EvidenceItem(
+        claim="Revenue declined by 7%.",
+        source="Quarterly filing",
+        source_type="regulatory_filing",
+        confidence=0.8,
+    )
+
+    conflict = EvidenceConflict(
+        first_evidence=first,
+        second_evidence=second,
+        reason="The evidence reports opposite revenue trends.",
+        severity=ConflictSeverity.HIGH,
+    )
+
+    agent = AnalysisAgent(llm)
+
+    await agent.run(
+        AnalysisInput(
+            objective="Evaluate revenue performance",
+            evidence=EvidenceBundle(items=[first, second]),
+            conflicts=ConflictReport(conflicts=[conflict]),
+        )
+    )
+
+    assert len(llm.prompts) == 1
+    assert "Detected conflicts:" in llm.prompts[0]
+    assert "Revenue increased by 18%." in llm.prompts[0]
+    assert "Revenue declined by 7%." in llm.prompts[0]
+    assert "HIGH" not in llm.prompts[0]
+    assert "high" in llm.prompts[0]
 
 
 async def test_critic_agent_uses_structured_llm_response() -> None:
