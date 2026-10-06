@@ -6,6 +6,7 @@ from app.application.workflows.multi_agent_graph import (
     run_analysis,
     run_critique,
     run_research,
+    run_verification,
     run_synthesis,
 )
 from app.application.workflows.state import DecisionState
@@ -27,6 +28,9 @@ def build_decision_graph(
     async def research_node(state: DecisionState) -> dict:
         return await run_research(state, llm)
 
+    async def verification_node(state: DecisionState) -> dict:
+        return await run_verification(state)
+
     async def analysis_node(state: DecisionState) -> dict:
         return await run_analysis(state, llm)
 
@@ -40,6 +44,7 @@ def build_decision_graph(
 
     graph.add_node("prepare", prepare_decision)
     graph.add_node("research", research_node)
+    graph.add_node("verification", verification_node)
     graph.add_node("analysis", analysis_node)
     graph.add_node("critique", critique_node)
     graph.add_node("synthesis", synthesis_node)
@@ -47,7 +52,8 @@ def build_decision_graph(
 
     graph.add_edge(START, "prepare")
     graph.add_edge("prepare", "research")
-    graph.add_edge("research", "analysis")
+    graph.add_edge("research", "verification")
+    graph.add_edge("verification", "analysis")
     graph.add_edge("analysis", "critique")
     graph.add_edge("critique", "synthesis")
     graph.add_edge("synthesis", "complete")

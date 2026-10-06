@@ -10,6 +10,8 @@ from app.application.agents.inputs import (
 )
 from app.application.agents.research import ResearchAgent
 from app.application.agents.synthesis import SynthesisAgent
+from app.application.evidence.contracts import EvidenceBundle
+from app.application.evidence.verifier import EvidenceVerifier
 from app.application.llm.fake import FakeLLMClient
 from app.application.llm.protocol import LLMClient
 from app.application.workflows.state import DecisionState
@@ -35,6 +37,27 @@ async def run_research(
     return {
         "research": result.findings,
         "evidence": result.evidence,
+    }
+
+
+async def run_verification(
+    state: DecisionState,
+) -> dict:
+    verifier = EvidenceVerifier()
+
+    verified_items = []
+
+    for evidence in state["evidence"].items:
+        verification = verifier.verify(evidence)
+
+        verified_items.append(
+            evidence.model_copy(
+                update={"verification": verification}
+            )
+        )
+
+    return {
+        "evidence": EvidenceBundle(items=verified_items),
     }
 
 
@@ -107,6 +130,9 @@ def build_multi_agent_graph(
     async def research_node(state: DecisionState) -> dict:
         return await run_research(state, llm)
 
+    async def verification_node(state: DecisionState) -> dict:
+        return await run_verification(state)
+
     async def analysis_node(state: DecisionState) -> dict:
         return await run_analysis(state, llm)
 
@@ -119,12 +145,14 @@ def build_multi_agent_graph(
     graph = StateGraph(DecisionState)
 
     graph.add_node("research", research_node)
+    graph.add_node("verification", verification_node)
     graph.add_node("analysis", analysis_node)
     graph.add_node("critique", critique_node)
     graph.add_node("synthesis", synthesis_node)
 
     graph.add_edge(START, "research")
-    graph.add_edge("research", "analysis")
+    graph.add_edge("research", "verification")
+    graph.add_edge("verification", "analysis")
     graph.add_edge("analysis", "critique")
     graph.add_edge("critique", "synthesis")
     graph.add_edge("synthesis", END)

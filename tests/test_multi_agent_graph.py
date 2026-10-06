@@ -1,7 +1,7 @@
 import asyncio
 from uuid import uuid4
 
-from app.application.evidence.contracts import EvidenceBundle
+from app.application.evidence.contracts import EvidenceBundle, VerificationStatus
 from app.application.llm.fake import FakeLLMClient
 from app.application.workflows.multi_agent_graph import build_multi_agent_graph
 
@@ -68,6 +68,11 @@ def test_multi_agent_graph_executes_all_agents() -> None:
         assert result["research"] == ["Research finding"]
         assert len(result["evidence"].items) == 1
         assert result["evidence"].items[0].claim == "Research finding"
+        assert result["evidence"].items[0].verification is not None
+        assert (
+            result["evidence"].items[0].verification.status
+            == VerificationStatus.VERIFIED
+        )
         assert result["analysis"] == ["Analysis conclusion"]
         assert result["critique"] == ["Critique concern"]
         assert result["synthesis"] == "Proceed with the decision"

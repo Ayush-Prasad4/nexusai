@@ -1,7 +1,7 @@
 import asyncio
 from uuid import uuid4
 
-from app.application.evidence.contracts import EvidenceBundle
+from app.application.evidence.contracts import EvidenceBundle, VerificationStatus
 from app.application.llm.fake import FakeLLMClient
 from app.application.workflows.decision_graph import build_decision_graph
 
@@ -68,6 +68,11 @@ def test_decision_graph_completes_workflow() -> None:
         assert len(result["research"]) == 1
         assert len(result["evidence"].items) == 1
         assert result["evidence"].items[0].claim == "Research finding"
+        assert result["evidence"].items[0].verification is not None
+        assert (
+            result["evidence"].items[0].verification.status
+            == VerificationStatus.VERIFIED
+        )
         assert len(result["analysis"]) == 1
         assert len(result["critique"]) == 1
         assert result["synthesis"] == "Proceed with the decision"

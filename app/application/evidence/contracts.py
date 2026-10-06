@@ -9,6 +9,16 @@ class EvidenceStance(str, Enum):
     NEUTRAL = "neutral"
 
 
+class VerificationStatus(str, Enum):
+    VERIFIED = "verified"
+    REJECTED = "rejected"
+
+
+class EvidenceVerification(BaseModel):
+    status: VerificationStatus
+    reason: str = Field(min_length=1, max_length=10_000)
+
+
 class EvidenceItem(BaseModel):
     claim: str = Field(min_length=1, max_length=10_000)
     source: str = Field(min_length=1, max_length=10_000)
@@ -16,6 +26,7 @@ class EvidenceItem(BaseModel):
     stance: EvidenceStance = EvidenceStance.SUPPORTS
     confidence: float = Field(ge=0.0, le=1.0)
     metadata: dict[str, str] = Field(default_factory=dict)
+    verification: EvidenceVerification | None = None
 
 
 class EvidenceBundle(BaseModel):
