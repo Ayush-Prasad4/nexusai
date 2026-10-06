@@ -1,6 +1,7 @@
 from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.graph import END, START, StateGraph
 
+from app.application.llm.protocol import LLMClient
 from app.application.workflows.multi_agent_graph import (
     run_analysis,
     run_critique,
@@ -11,28 +12,37 @@ from app.application.workflows.state import DecisionState
 
 
 def prepare_decision(state: DecisionState) -> dict:
-    return {
-        "status": "prepared",
-        "error": None,
-    }
+    return {"status": "prepared", "error": None}
 
 
 def complete_decision(state: DecisionState) -> dict:
-    return {
-        "status": "completed",
-    }
+    return {"status": "completed"}
 
 
 def build_decision_graph(
+    *,
     checkpointer: BaseCheckpointSaver | None = None,
+    llm: LLMClient,
 ):
+    async def research_node(state: DecisionState) -> dict:
+        return await run_research(state, llm)
+
+    async def analysis_node(state: DecisionState) -> dict:
+        return await run_analysis(state, llm)
+
+    async def critique_node(state: DecisionState) -> dict:
+        return await run_critique(state, llm)
+
+    async def synthesis_node(state: DecisionState) -> dict:
+        return await run_synthesis(state, llm)
+
     graph = StateGraph(DecisionState)
 
     graph.add_node("prepare", prepare_decision)
-    graph.add_node("research", run_research)
-    graph.add_node("analysis", run_analysis)
-    graph.add_node("critique", run_critique)
-    graph.add_node("synthesis", run_synthesis)
+    graph.add_node("research", research_node)
+    graph.add_node("analysis", analysis_node)
+    graph.add_node("critique", critique_node)
+    graph.add_node("synthesis", synthesis_node)
     graph.add_node("complete", complete_decision)
 
     graph.add_edge(START, "prepare")

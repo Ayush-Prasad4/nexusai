@@ -4,6 +4,7 @@ from uuid import uuid4
 from redis import Redis
 
 from app.application.jobs.contracts import DecisionJob
+from app.application.llm.fake import FakeLLMClient
 from app.application.workflows.state import DecisionState
 from app.core.config import get_settings
 from app.domain.models import DecisionRunStatus
@@ -133,8 +134,9 @@ def test_process_job_executes_decision_graph(monkeypatch) -> None:
         async def __aexit__(self, exc_type, exc, tb):
             return False
 
-    def fake_build_decision_graph(*, checkpointer):
+    def fake_build_decision_graph(*, checkpointer, llm):
         received_checkpointers.append(checkpointer)
+        assert isinstance(llm, FakeLLMClient)
         return FakeGraph()
 
     monkeypatch.setattr(
@@ -153,6 +155,12 @@ def test_process_job_executes_decision_graph(monkeypatch) -> None:
         decision_worker,
         "build_decision_graph",
         fake_build_decision_graph,
+    )
+
+    monkeypatch.setattr(
+        decision_worker,
+        "get_llm_client",
+        lambda: FakeLLMClient(),
     )
 
     asyncio.run(

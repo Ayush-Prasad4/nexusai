@@ -2,6 +2,7 @@ from app.application.agents.contracts import CritiqueResult
 from app.application.agents.inputs import CritiqueInput
 from app.application.agents.protocol import Agent
 from app.application.llm.protocol import LLMClient
+from app.application.llm.structured import parse_structured_response
 
 
 class CriticAgent(Agent[CritiqueInput, CritiqueResult]):
@@ -22,20 +23,16 @@ class CriticAgent(Agent[CritiqueInput, CritiqueResult]):
             f"Objective:\n{input.objective}\n\n"
             f"Analysis:\n{analysis}\n\n"
             f"Assumptions:\n{assumptions}\n\n"
-            "Critically review the analysis. Identify concerns, unsupported "
-            "claims, missing considerations, and weaknesses. "
-            "Return one concern or weakness per line."
+            "Critically review the analysis. Identify concerns and "
+            "weaknesses, including unsupported claims or missing considerations.\n\n"
+            "Return ONLY valid JSON matching this schema:\n"
+            '{"concerns": ["concern 1"], "weaknesses": ["weakness 1"]}\n\n'
+            "Do not include markdown, code fences, or any text outside the JSON."
         )
 
         response = await self.llm.generate(prompt)
 
-        concerns = [
-            line.strip("- ").strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
-
-        return CritiqueResult(
-            concerns=concerns,
-            weaknesses=[],
+        return parse_structured_response(
+            response,
+            CritiqueResult,
         )

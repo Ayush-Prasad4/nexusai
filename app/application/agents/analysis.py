@@ -2,6 +2,7 @@ from app.application.agents.contracts import AnalysisResult
 from app.application.agents.inputs import AnalysisInput
 from app.application.agents.protocol import Agent
 from app.application.llm.protocol import LLMClient
+from app.application.llm.structured import parse_structured_response
 
 
 class AnalysisAgent(Agent[AnalysisInput, AnalysisResult]):
@@ -10,7 +11,7 @@ class AnalysisAgent(Agent[AnalysisInput, AnalysisResult]):
 
     async def run(self, input: AnalysisInput) -> AnalysisResult:
         research = "\n".join(
-            f"- {finding}" for finding in input.research
+            f"- {item}" for item in input.research
         ) or "No research findings provided."
 
         prompt = (
@@ -18,21 +19,16 @@ class AnalysisAgent(Agent[AnalysisInput, AnalysisResult]):
             f"Objective:\n{input.objective}\n\n"
             f"Context:\n{input.context or 'No additional context provided.'}\n\n"
             f"Research findings:\n{research}\n\n"
-            "Analyze the research findings in relation to the objective. "
-            "Identify the main conclusions and important assumptions. "
-            "Return conclusions first, one per line, followed by assumptions, "
-            "one per line."
+            "Analyze the research in relation to the objective. "
+            "Identify conclusions and important assumptions.\n\n"
+            "Return ONLY valid JSON matching this schema:\n"
+            '{"conclusions": ["conclusion 1"], "assumptions": ["assumption 1"]}\n\n'
+            "Do not include markdown, code fences, or any text outside the JSON."
         )
 
         response = await self.llm.generate(prompt)
 
-        lines = [
-            line.strip("- ").strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
-
-        return AnalysisResult(
-            conclusions=lines,
-            assumptions=[],
+        return parse_structured_response(
+            response,
+            AnalysisResult,
         )

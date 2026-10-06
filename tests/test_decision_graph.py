@@ -1,14 +1,34 @@
 import asyncio
 from uuid import uuid4
 
-from app.application.workflows.decision_graph import (
-    build_decision_graph,
-)
+from app.application.llm.fake import FakeLLMClient
+from app.application.workflows.decision_graph import build_decision_graph
+
+
+class DecisionGraphFakeLLM(FakeLLMClient):
+    async def generate(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+
+        if "Research Agent" in prompt:
+            return '{"findings":["Research finding"],"sources":["test-source"]}'
+
+        if "Analysis Agent" in prompt:
+            return '{"conclusions":["Analysis conclusion"],"assumptions":["Analysis assumption"]}'
+
+        if "Critic Agent" in prompt:
+            return '{"concerns":["Critique concern"],"weaknesses":["Critique weakness"]}'
+
+        if "Synthesis Agent" in prompt:
+            return '{"decision":"Proceed with the decision","rationale":["Supporting rationale"]}'
+
+        raise AssertionError("Unknown agent prompt")
 
 
 def test_decision_graph_completes_workflow() -> None:
     async def scenario() -> None:
-        graph = build_decision_graph()
+        llm = DecisionGraphFakeLLM()
+
+        graph = build_decision_graph(llm=llm)
 
         state = {
             "decision_run_id": uuid4(),
@@ -28,6 +48,8 @@ def test_decision_graph_completes_workflow() -> None:
         assert len(result["research"]) == 1
         assert len(result["analysis"]) == 1
         assert len(result["critique"]) == 1
-        assert result["synthesis"]
+        assert result["synthesis"] == "Proceed with the decision"
+
+        assert len(llm.prompts) == 4
 
     asyncio.run(scenario())

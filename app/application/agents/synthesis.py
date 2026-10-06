@@ -2,6 +2,7 @@ from app.application.agents.contracts import SynthesisResult
 from app.application.agents.inputs import SynthesisInput
 from app.application.agents.protocol import Agent
 from app.application.llm.protocol import LLMClient
+from app.application.llm.structured import parse_structured_response
 
 
 class SynthesisAgent(Agent[SynthesisInput, SynthesisResult]):
@@ -27,23 +28,16 @@ class SynthesisAgent(Agent[SynthesisInput, SynthesisResult]):
             f"Research:\n{research}\n\n"
             f"Analysis:\n{analysis}\n\n"
             f"Critique:\n{concerns}\n\n"
-            "Synthesize the available information into a final decision. "
-            "Return the decision as the first line, followed by concise "
-            "rationale points, one per line."
+            "Synthesize the available information into a final decision "
+            "and concise rationale.\n\n"
+            "Return ONLY valid JSON matching this schema:\n"
+            '{"decision": "final decision", "rationale": ["reason 1"]}\n\n'
+            "Do not include markdown, code fences, or any text outside the JSON."
         )
 
         response = await self.llm.generate(prompt)
 
-        lines = [
-            line.strip("- ").strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
-
-        decision = lines[0] if lines else "No decision generated."
-        rationale = lines[1:]
-
-        return SynthesisResult(
-            decision=decision,
-            rationale=rationale,
+        return parse_structured_response(
+            response,
+            SynthesisResult,
         )

@@ -9,9 +9,12 @@ from app.application.agents.synthesis import SynthesisAgent
 from app.application.llm.fake import FakeLLMClient
 
 
-async def test_analysis_agent_uses_llm_response() -> None:
+async def test_analysis_agent_uses_structured_llm_response() -> None:
     llm = FakeLLMClient(
-        response="- Conclusion one\n- Conclusion two"
+        response=(
+            '{"conclusions": ["Conclusion one", "Conclusion two"], '
+            '"assumptions": ["Assumption one"]}'
+        )
     )
 
     agent = AnalysisAgent(llm)
@@ -28,13 +31,17 @@ async def test_analysis_agent_uses_llm_response() -> None:
         "Conclusion one",
         "Conclusion two",
     ]
+    assert result.assumptions == ["Assumption one"]
     assert len(llm.prompts) == 1
     assert "Enterprise demand is growing." in llm.prompts[0]
 
 
-async def test_critic_agent_uses_llm_response() -> None:
+async def test_critic_agent_uses_structured_llm_response() -> None:
     llm = FakeLLMClient(
-        response="- Concern one\n- Concern two"
+        response=(
+            '{"concerns": ["Concern one", "Concern two"], '
+            '"weaknesses": ["Weakness one"]}'
+        )
     )
 
     agent = CriticAgent(llm)
@@ -51,16 +58,17 @@ async def test_critic_agent_uses_llm_response() -> None:
         "Concern one",
         "Concern two",
     ]
+    assert result.weaknesses == ["Weakness one"]
     assert len(llm.prompts) == 1
     assert "Enterprise demand is growing." in llm.prompts[0]
 
 
-async def test_synthesis_agent_uses_llm_response() -> None:
+async def test_synthesis_agent_uses_structured_llm_response() -> None:
     llm = FakeLLMClient(
         response=(
-            "Expand into enterprise customers\n"
-            "- Strong market demand\n"
-            "- Requires additional sales capacity"
+            '{"decision": "Expand into enterprise customers", '
+            '"rationale": ["Strong market demand", '
+            '"Requires additional sales capacity"]}'
         )
     )
 

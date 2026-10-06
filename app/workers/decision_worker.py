@@ -5,6 +5,7 @@ from uuid import uuid4
 from redis.asyncio import Redis
 
 from app.application.jobs.contracts import DecisionJob
+from app.application.llm.factory import get_llm_client
 from app.application.reliability.executor import execute_with_retry
 from app.application.reliability.retry import RetryPolicy
 from app.application.workflows.decision_graph import build_decision_graph
@@ -78,8 +79,11 @@ async def process_job(job: DecisionJob) -> None:
                 )
                 return
 
+        llm = get_llm_client()
+
         graph = build_decision_graph(
             checkpointer=checkpointer,
+            llm=llm,
         )
 
         initial_state = {

@@ -2,6 +2,7 @@ from app.application.agents.contracts import ResearchResult
 from app.application.agents.inputs import ResearchInput
 from app.application.agents.protocol import Agent
 from app.application.llm.protocol import LLMClient
+from app.application.llm.structured import parse_structured_response
 
 
 class ResearchAgent(Agent[ResearchInput, ResearchResult]):
@@ -14,19 +15,15 @@ class ResearchAgent(Agent[ResearchInput, ResearchResult]):
             f"Objective:\n{input.objective}\n\n"
             f"Context:\n{input.context or 'No additional context provided.'}\n\n"
             "Identify the key facts, considerations, and information that "
-            "should be researched to support this decision. "
-            "Return concise research findings, one finding per line."
+            "should be researched to support this decision.\n\n"
+            "Return ONLY valid JSON matching this schema:\n"
+            '{"findings": ["finding 1", "finding 2"], "sources": []}\n\n'
+            "Do not include markdown, code fences, or any text outside the JSON."
         )
 
         response = await self.llm.generate(prompt)
 
-        findings = [
-            line.strip("- ").strip()
-            for line in response.splitlines()
-            if line.strip()
-        ]
-
-        return ResearchResult(
-            findings=findings,
-            sources=[],
+        return parse_structured_response(
+            response,
+            ResearchResult,
         )

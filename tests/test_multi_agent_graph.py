@@ -1,14 +1,46 @@
 import asyncio
 from uuid import uuid4
 
-from app.application.workflows.multi_agent_graph import (
-    build_multi_agent_graph,
-)
+from app.application.llm.fake import FakeLLMClient
+from app.application.workflows.multi_agent_graph import build_multi_agent_graph
+
+
+class MultiAgentFakeLLM(FakeLLMClient):
+    async def generate(self, prompt: str) -> str:
+        self.prompts.append(prompt)
+
+        if "Research Agent" in prompt:
+            return (
+                '{"findings": ["Research finding"], '
+                '"sources": ["test-source"]}'
+            )
+
+        if "Analysis Agent" in prompt:
+            return (
+                '{"conclusions": ["Analysis conclusion"], '
+                '"assumptions": ["Analysis assumption"]}'
+            )
+
+        if "Critic Agent" in prompt:
+            return (
+                '{"concerns": ["Critique concern"], '
+                '"weaknesses": ["Critique weakness"]}'
+            )
+
+        if "Synthesis Agent" in prompt:
+            return (
+                '{"decision": "Proceed with the decision", '
+                '"rationale": ["Supporting rationale"]}'
+            )
+
+        raise AssertionError("Unknown agent prompt")
 
 
 def test_multi_agent_graph_executes_all_agents() -> None:
     async def scenario() -> None:
-        graph = build_multi_agent_graph()
+        llm = MultiAgentFakeLLM()
+
+        graph = build_multi_agent_graph(llm=llm)
 
         result = await graph.ainvoke(
             {
@@ -24,10 +56,12 @@ def test_multi_agent_graph_executes_all_agents() -> None:
             }
         )
 
-        assert len(result["research"]) == 1
-        assert len(result["analysis"]) == 1
-        assert len(result["critique"]) == 1
-        assert result["synthesis"]
+        assert result["research"] == ["Research finding"]
+        assert result["analysis"] == ["Analysis conclusion"]
+        assert result["critique"] == ["Critique concern"]
+        assert result["synthesis"] == "Proceed with the decision"
         assert result["status"] == "completed"
+
+        assert len(llm.prompts) == 4
 
     asyncio.run(scenario())
