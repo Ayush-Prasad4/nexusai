@@ -17,7 +17,20 @@ class ResearchAgent(Agent[ResearchInput, ResearchResult]):
             "Identify the key facts, considerations, and information that "
             "should be researched to support this decision.\n\n"
             "Return ONLY valid JSON matching this schema:\n"
-            '{"findings": ["finding 1", "finding 2"], "sources": []}\n\n'
+            "{"
+            '"findings": ["finding 1", "finding 2"], '
+            '"evidence": {"items": ['
+            '{"claim": "claim text", '
+            '"source": "source name", '
+            '"source_type": "source type", '
+            '"stance": "supports", '
+            '"confidence": 0.9, '
+            '"metadata": {}}'
+            "]}"
+            "}\n\n"
+            "Each evidence item must describe a specific claim and its source. "
+            "Use stance values: supports, contradicts, or neutral. "
+            "Confidence must be a number between 0 and 1.\n\n"
             "Do not include markdown, code fences, or any text outside the JSON."
         )
 

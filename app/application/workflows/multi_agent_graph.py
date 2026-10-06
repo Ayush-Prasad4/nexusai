@@ -34,6 +34,7 @@ async def run_research(
 
     return {
         "research": result.findings,
+        "evidence": result.evidence,
     }
 
 
@@ -48,6 +49,7 @@ async def run_analysis(
             objective=state["objective"],
             context=state["context"],
             research=state.get("research", []),
+            evidence=state["evidence"],
         )
     )
 

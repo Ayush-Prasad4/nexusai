@@ -1,9 +1,11 @@
 from pydantic import BaseModel, Field
 
+from app.application.evidence.contracts import EvidenceBundle
+
 
 class ResearchResult(BaseModel):
     findings: list[str] = Field(default_factory=list)
-    sources: list[str] = Field(default_factory=list)
+    evidence: EvidenceBundle = Field(default_factory=EvidenceBundle)
 
 
 class AnalysisResult(BaseModel):

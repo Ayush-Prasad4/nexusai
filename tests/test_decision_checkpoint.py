@@ -3,6 +3,7 @@ from uuid import uuid4
 
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
+from app.application.evidence.contracts import EvidenceBundle
 from app.application.llm.fake import FakeLLMClient
 from app.application.workflows.decision_graph import build_decision_graph
 from app.application.workflows.state import DecisionState
@@ -14,16 +15,34 @@ class DecisionCheckpointFakeLLM(FakeLLMClient):
         self.prompts.append(prompt)
 
         if "Research Agent" in prompt:
-            return '{"findings":["Research finding"],"sources":["test-source"]}'
+            return (
+                '{"findings":["Research finding"], '
+                '"evidence":{"items":['
+                '{"claim":"Research finding",'
+                '"source":"test-source",'
+                '"source_type":"test",'
+                '"stance":"supports",'
+                '"confidence":0.9,'
+                '"metadata":{}}]}}'
+            )
 
         if "Analysis Agent" in prompt:
-            return '{"conclusions":["Analysis conclusion"],"assumptions":["Analysis assumption"]}'
+            return (
+                '{"conclusions":["Analysis conclusion"], '
+                '"assumptions":["Analysis assumption"]}'
+            )
 
         if "Critic Agent" in prompt:
-            return '{"concerns":["Critique concern"],"weaknesses":["Critique weakness"]}'
+            return (
+                '{"concerns":["Critique concern"], '
+                '"weaknesses":["Critique weakness"]}'
+            )
 
         if "Synthesis Agent" in prompt:
-            return '{"decision":"Proceed with the decision","rationale":["Supporting rationale"]}'
+            return (
+                '{"decision":"Proceed with the decision", '
+                '"rationale":["Supporting rationale"]}'
+            )
 
         raise AssertionError("Unknown agent prompt")
 
@@ -52,9 +71,14 @@ def test_decision_workflow_persists_checkpoint() -> None:
             state: DecisionState = {
                 "decision_run_id": uuid4(),
                 "objective": "Verify durable LangGraph checkpointing.",
-                "context": "Phase 5.8 integration test.",
+                "context": "Phase 7.1 evidence integration test.",
                 "status": "pending",
                 "error": None,
+                "research": [],
+                "evidence": EvidenceBundle(),
+                "analysis": [],
+                "critique": [],
+                "synthesis": None,
             }
 
             config = {
@@ -69,10 +93,21 @@ def test_decision_workflow_persists_checkpoint() -> None:
             )
 
             assert result["status"] == "completed"
+            assert len(result["evidence"].items) == 1
+            assert result["evidence"].items[0].claim == "Research finding"
 
             checkpoint = await checkpointer.aget_tuple(config)
 
             assert checkpoint is not None
             assert checkpoint.config["configurable"]["thread_id"] == thread_id
+
+            checkpoint_state = checkpoint.checkpoint["channel_values"]
+
+            assert "evidence" in checkpoint_state
+            assert len(checkpoint_state["evidence"].items) == 1
+            assert (
+                checkpoint_state["evidence"].items[0].claim
+                == "Research finding"
+            )
 
     asyncio.run(run_test())
