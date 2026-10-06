@@ -8,6 +8,7 @@ from app.core.errors.exceptions import NexusAIException
 from app.core.errors.handlers import nexusai_exception_handler
 from app.core.middleware.request_id import RequestIDMiddleware
 from app.core.middleware.rate_limit import RateLimitMiddleware
+from app.core.middleware.security_headers import SecurityHeadersMiddleware
 from app.observability.logging import configure_logging
 from app.infrastructure.redis.client import create_redis_client
 
@@ -39,5 +40,6 @@ app.add_exception_handler(
 
 app.add_middleware(RequestIDMiddleware)
 app.add_middleware(RateLimitMiddleware)
+app.add_middleware(SecurityHeadersMiddleware)
 
 app.include_router(api_router)
