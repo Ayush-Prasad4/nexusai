@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 30
     rate_limit_requests: int = 100
     rate_limit_window_seconds: int = 60
+    max_request_body_bytes: int = 1_048_576
 
     model_config = SettingsConfigDict(
         env_prefix="NEXUSAI_",
