@@ -1,55 +1,119 @@
 # NexusAI
 
-NexusAI is a production-grade multi-agent intelligence and decision platform designed to demonstrate how AI decision workflows can be built as reliable backend systems rather than simple LLM wrappers.
+## Production-Grade Multi-Agent Intelligence & Decision Platform
 
-## What NexusAI Demonstrates
+**NexusAI** is a production-grade multi-agent decision platform that turns complex decision requests into durable, evidence-driven workflows with verification, conflict detection, persistent state, and auditable outputs.
 
-* Multi-agent decision workflows with LangGraph
-* Asynchronous job processing with Redis Streams
-* Persistent state and results with PostgreSQL
-* Durable workflow checkpoints
-* Idempotent worker execution
-* Retry and failure recovery
-* JWT authentication and RBAC
-* Request tracing with request IDs
-* Prometheus and Grafana observability
-* Dockerized and horizontally scalable services
+Rather than treating an LLM as a single API call, NexusAI treats AI decision-making as a **distributed backend workflow** with asynchronous execution, multiple specialized agents, durable checkpoints, idempotent processing, failure recovery, security, observability, and automated validation.
 
-## Architecture
+---
+
+## Why NexusAI?
+
+Many AI applications stop at:
 
 ```text
-Client
-  │
-  ▼
-Nginx
-  │
-  ├───────────────┐
-  ▼               ▼
-FastAPI #1     FastAPI #2
-  │               │
-  └───────┬───────┘
-          │
-     ┌────┴─────┐
-     ▼          ▼
-PostgreSQL   Redis Streams
-                │
-                ▼
-        ┌─────────────────┐
-        │ Decision Workers │
-        │     #1 / #2      │
-        └────────┬─────────┘
-                 │
-                 ▼
-             LangGraph
-                 │
-                 ▼
-       Multi-Agent Workflow
-                 │
-                 ▼
-       Persisted Decision
+User → API → LLM → Response
 ```
 
-## Decision Workflow
+NexusAI explores what happens when an AI workflow needs to behave more like a production backend system:
+
+```text
+Request
+   ↓
+Persistent State
+   ↓
+Async Job Queue
+   ↓
+Distributed Worker
+   ↓
+Multi-Agent Workflow
+   ↓
+Verification & Conflict Detection
+   ↓
+Decision Synthesis
+   ↓
+Persistent Result
+   ↓
+Observable & Recoverable System
+```
+
+The project focuses on the engineering challenges around **reliable AI systems**, not just prompt engineering or building another chatbot.
+
+---
+
+## Key Engineering Highlights
+
+* **Multi-agent orchestration** using LangGraph
+* **Asynchronous distributed execution** using Redis Streams and dedicated workers
+* **Persistent decision state** using PostgreSQL
+* **Atomic idempotency** to prevent duplicate decision execution
+* **Durable workflow checkpoints** for recovery
+* **Retry and failure recovery** with exponential backoff and dead-letter handling
+* **JWT authentication and RBAC**
+* **Request IDs** for request-level traceability
+* **Prometheus + Grafana observability**
+* **Dockerized horizontal scaling**
+* **Automated unit, integration, security, concurrency, and end-to-end testing**
+* **Locust-based performance validation**
+
+---
+
+# Architecture
+
+```text
+                         ┌──────────────────┐
+                         │      Client      │
+                         └────────┬─────────┘
+                                  │
+                                  ▼
+                         ┌──────────────────┐
+                         │      Nginx       │
+                         │  Reverse Proxy   │
+                         └────────┬─────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+             ┌──────────────┐           ┌──────────────┐
+             │   FastAPI    │           │   FastAPI    │
+             │   API #1     │           │   API #2     │
+             └──────┬───────┘           └──────┬───────┘
+                    │                           │
+                    └─────────────┬─────────────┘
+                                  │
+                    ┌─────────────┴─────────────┐
+                    ▼                           ▼
+             ┌──────────────┐           ┌────────────────┐
+             │ PostgreSQL   │           │ Redis Streams  │
+             │ Persistent   │           │ Async Job      │
+             │ State        │           │ Queue          │
+             └──────────────┘           └───────┬────────┘
+                                                │
+                                      ┌─────────┴─────────┐
+                                      ▼                   ▼
+                              ┌──────────────┐    ┌──────────────┐
+                              │   Worker #1   │    │   Worker #2   │
+                              └──────┬───────┘    └──────┬───────┘
+                                     │                    │
+                                     └─────────┬──────────┘
+                                               ▼
+                                      ┌────────────────┐
+                                      │    LangGraph   │
+                                      │ Decision Graph │
+                                      └───────┬────────┘
+                                              │
+                                              ▼
+                                      Multi-Agent System
+                                              │
+                                              ▼
+                                      Persisted Decision
+```
+
+---
+
+# Decision Workflow
+
+The decision workflow is implemented as a LangGraph state machine:
 
 ```text
 START
@@ -82,46 +146,69 @@ Complete
 END
 ```
 
-The workflow uses specialized stages for research, verification, conflict detection, analysis, critique, and final synthesis.
+Each stage has a specific responsibility rather than relying on a single general-purpose model call.
 
-## Request Lifecycle
+### Workflow stages
+
+| Stage              | Responsibility                                   |
+| ------------------ | ------------------------------------------------ |
+| Research           | Gather and structure relevant information        |
+| Verification       | Validate research outputs                        |
+| Conflict Detection | Identify inconsistencies or conflicting evidence |
+| Analysis           | Produce structured analytical reasoning          |
+| Critique           | Challenge and review the analysis                |
+| Synthesis          | Produce the final decision and rationale         |
+
+---
+
+# Request Lifecycle
 
 A decision request follows an asynchronous lifecycle:
 
 ```text
-API Request
-    │
-    ▼
-Persist PENDING run
-    │
-    ▼
+Client
+  │
+  ▼
+FastAPI
+  │
+  ▼
+Persist PENDING decision
+  │
+  ▼
 Publish Redis job
-    │
-    ▼
+  │
+  ▼
 Worker claims job
-    │
-    ▼
-Atomically transition to RUNNING
-    │
-    ▼
-Execute LangGraph workflow
-    │
-    ├──────────────► FAILED
-    │
-    ▼
+  │
+  ▼
+Atomic PENDING/FAILED → RUNNING transition
+  │
+  ▼
+Execute LangGraph
+  │
+  ├───────────────► FAILED
+  │
+  ▼
 Persist decision + rationale
-    │
-    ▼
+  │
+  ▼
 COMPLETED
+  │
+  ▼
+Acknowledge queue message
 ```
 
-This separates request handling from potentially expensive decision processing.
+This architecture keeps API request handling separate from potentially expensive AI processing.
 
-## Reliability Engineering
+---
 
-### Lifecycle Management
+# Reliability Engineering
 
-Decision runs use explicit states:
+NexusAI is designed around the assumption that distributed AI workflows can fail, retry, or be delivered more than once.
+
+## Explicit Lifecycle
+
+Decision runs use explicit persistent states:
 
 ```text
 PENDING → RUNNING → COMPLETED
@@ -129,23 +216,34 @@ PENDING → RUNNING → COMPLETED
                     └── FAILED
 ```
 
-State transitions are persisted in PostgreSQL.
+This makes workflow state observable and recoverable.
 
-### Idempotency
+## Atomic Idempotency
 
-Workers use an atomic database transition when claiming a decision run.
+Workers do not simply set a run to `RUNNING`.
 
-Only one worker can successfully transition a `PENDING` or retryable `FAILED` run to `RUNNING`.
+Instead, the database performs an atomic conditional transition.
 
-This prevents duplicate workers from concurrently executing the same decision.
+Only one worker can successfully claim a given pending/retryable decision:
 
-### Durable Checkpoints
+```text
+PENDING ──► RUNNING    Worker A: success
+PENDING ──► RUNNING    Worker B: rejected
+```
 
-LangGraph checkpoints persist workflow state. Workers can detect already-completed workflows and avoid re-running completed decisions.
+This prevents concurrent duplicate execution.
 
-### Retry and Recovery
+## Durable Checkpoints
 
-The Redis Streams worker system supports:
+LangGraph checkpoints persist workflow state.
+
+Workers can detect already-completed workflows and avoid executing completed decisions again.
+
+## Retry & Recovery
+
+Redis Streams provides the foundation for durable asynchronous processing.
+
+The worker system supports:
 
 * Consumer groups
 * Job claiming
@@ -153,77 +251,136 @@ The Redis Streams worker system supports:
 * Retry attempts
 * Exponential backoff
 * Dead-letter handling
-* Recovery of stale jobs
+* Stale-job recovery
+* Explicit message acknowledgement
 
-### Persistent State
+---
 
-Decision state, results, rationale, and failure information are persisted in PostgreSQL instead of existing only in process memory.
+# Security
 
-## Technology Stack
-
-| Layer         | Technology    |
-| ------------- | ------------- |
-| API           | FastAPI       |
-| Language      | Python 3.12   |
-| Workflow      | LangGraph     |
-| Database      | PostgreSQL    |
-| ORM           | SQLAlchemy    |
-| Migrations    | Alembic       |
-| Queue         | Redis Streams |
-| Reverse Proxy | Nginx         |
-| Containers    | Docker        |
-| Metrics       | Prometheus    |
-| Dashboards    | Grafana       |
-| Testing       | Pytest        |
-| Load Testing  | Locust        |
-
-## API and Security
-
-The API is versioned under `/v1`.
-
-Security and backend controls include:
+NexusAI includes application-level security controls suitable for a production-oriented API:
 
 * JWT authentication
 * Role-based access control
 * Active-user validation
-* Request rate limiting
+* Configurable request rate limiting
 * Request body-size limits
-* Configurable CORS
 * Host validation
+* Configurable CORS
 * Request ID generation and propagation
 * Structured error handling
+* Environment-based secret configuration
 
-Secrets are provided through environment variables rather than committed to the repository.
+Sensitive credentials are supplied through environment variables rather than committed to source control.
 
-## Observability
+---
 
-NexusAI exposes Prometheus metrics for API and decision-processing behavior.
+# Observability
 
-Tracked metrics include:
+The platform exposes Prometheus metrics for both API and decision-processing behavior.
+
+### HTTP metrics
 
 ```text
 nexusai_http_requests_total
 nexusai_http_request_duration_seconds
+```
+
+### Decision-processing metrics
+
+```text
 nexusai_decision_jobs_total
 nexusai_decision_job_duration_seconds
 nexusai_decision_queue_depth
 ```
 
-The scaled local environment runs:
+The local scaled environment includes:
 
+* Nginx
 * 2 API replicas
 * 2 worker replicas
-* Nginx
 * PostgreSQL
 * Redis
 * Prometheus
 * Grafana
 
-## Load Test Baseline
+This provides visibility into request performance, decision processing, and queue behavior.
 
-A Locust baseline was executed against `/v1/health/live` through the scaled Docker Compose environment.
+---
 
-### 50 Concurrent Users
+# Technology Stack
+
+| Area          | Technology     |
+| ------------- | -------------- |
+| Language      | Python 3.12    |
+| API           | FastAPI        |
+| AI Workflow   | LangGraph      |
+| Database      | PostgreSQL     |
+| ORM           | SQLAlchemy     |
+| Migrations    | Alembic        |
+| Queue         | Redis Streams  |
+| Reverse Proxy | Nginx          |
+| Containers    | Docker         |
+| Metrics       | Prometheus     |
+| Dashboards    | Grafana        |
+| Testing       | Pytest         |
+| Load Testing  | Locust         |
+| CI/CD         | GitHub Actions |
+
+---
+
+# Engineering Validation
+
+NexusAI is validated through automated testing and performance testing rather than relying only on a working local demo.
+
+## Automated Testing
+
+The test suite covers:
+
+* API behavior
+* Authentication
+* JWT security
+* RBAC
+* Configuration validation
+* Error handling
+* Request IDs
+* Decision lifecycle
+* Atomic idempotency
+* Concurrent worker claims
+* Persistence
+* Retry/recovery behavior
+* LangGraph workflow execution
+* End-to-end decision processing
+
+The current project contains **120+ automated tests**.
+
+### End-to-End Validation
+
+The E2E workflow validates the complete path:
+
+```text
+API Request
+     ↓
+PostgreSQL persistence
+     ↓
+Redis job queue
+     ↓
+Decision worker
+     ↓
+LangGraph workflow
+     ↓
+PostgreSQL result
+     ↓
+Queue acknowledgement
+```
+
+---
+
+# Load Test Baseline
+
+A Locust baseline was performed against the `/v1/health/live` endpoint through the scaled Docker Compose environment.
+
+## 50 Concurrent Users
 
 | Metric           |       Result |
 | ---------------- | -----------: |
@@ -239,55 +396,51 @@ A Locust baseline was executed against `/v1/health/live` through the scaled Dock
 | P99.9            |        39 ms |
 | Maximum          |        91 ms |
 
-A separate 10-user baseline completed with 0% failures at approximately 29.7 req/s.
+A separate 10-user baseline completed with:
 
-> These measurements benchmark the API/infrastructure health path. They are not a benchmark of the complete LLM-powered decision workflow.
+* 884 requests
+* 0 failures
+* 29.70 req/s
+* P95: 9 ms
+* P99: 14 ms
 
-## Testing
+> **Benchmark scope:** these measurements validate the API/infrastructure health path through Nginx and the scaled API deployment. They are **not** a benchmark of the complete LLM-powered decision workflow.
 
-The project contains unit, integration, authentication, lifecycle, idempotency, persistence, request-ID, and end-to-end workflow tests.
+---
 
-The end-to-end flow covers:
+# Local Development
 
-```text
-API
- ↓
-PostgreSQL
- ↓
-Redis
- ↓
-Worker
- ↓
-LangGraph
- ↓
-PostgreSQL result
- ↓
-Queue acknowledgement
-```
-
-The current test suite contains more than 120 automated tests.
-
-## Local Development
-
-### Start the standard environment
+## Standard Environment
 
 ```bash
 docker compose up -d
 ```
 
-### Start the scaled environment
+## Scaled Environment
 
 ```bash
 docker compose -f docker-compose.yml -f docker-compose.scale.yml up -d
 ```
 
-### Run tests
+The scaled environment runs:
+
+```text
+2 × FastAPI API
+2 × Decision Workers
+1 × Nginx
+1 × PostgreSQL
+1 × Redis
+1 × Prometheus
+1 × Grafana
+```
+
+## Run Tests
 
 ```bash
 pytest -q
 ```
 
-### Run the load test
+## Run Load Test
 
 ```bash
 locust -f tests/load/locustfile.py \
@@ -298,7 +451,9 @@ locust -f tests/load/locustfile.py \
   --host http://localhost:8003
 ```
 
-## Project Structure
+---
+
+# Project Structure
 
 ```text
 nexusai/
@@ -327,13 +482,18 @@ nexusai/
 └── pyproject.toml
 ```
 
-## Engineering Focus
+---
 
-NexusAI focuses on the engineering challenges around production AI workflows:
+# Engineering Focus
+
+NexusAI focuses on the intersection of **AI engineering, backend engineering, and distributed systems**.
+
+The project demonstrates practical work with:
 
 * Multi-agent orchestration
+* Agentic workflows
 * Durable state management
-* Asynchronous processing
+* Asynchronous job processing
 * Distributed worker coordination
 * Idempotent execution
 * Failure recovery
@@ -343,4 +503,6 @@ NexusAI focuses on the engineering challenges around production AI workflows:
 * Automated testing
 * Performance validation
 
-The project is intentionally focused on building a reliable AI decision system rather than a simple chatbot or single LLM API wrapper.
+The goal is not to build another chatbot.
+
+The goal is to demonstrate how an AI-powered decision workflow can be engineered as a **reliable, observable, secure, and recoverable production system**.
